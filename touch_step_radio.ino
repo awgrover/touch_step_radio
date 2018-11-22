@@ -1,50 +1,73 @@
-#include "mpr121.h"
+/*
+  Behavior:
+  
+    while touching 1 goes forward
+    while touching 2 goes backwards
+    sends same info to 2nd arduino
+    also listens on radio for commands to go forward/backward: code for both is same
+
+  Uses
+    a capacitance touch board (mpr121)
+    a stepper driver DRV8825
+    and a radio HC-12
+*/
+
 #include <Wire.h>
 
+// cap touch mpr121
+#include "mpr121.h"
 int irqpin = 2;  // Digital 2
 boolean touchStates[12]; //to keep track of the previous touch states
-const int stepPin = 9;
-const int dirPin = 8;
+
+// stepper driver drv8825
+const int stepper_pulse = 9;
+const int stepper_direction = 8;
+const int stepper_interval = 50; // msec between sending a step
+unsigned int long stepper_last_at = 0; // when we did the last step
 
 void setup(){
-  pinMode(irqpin, INPUT);
-  pinMode(stepPin,OUTPUT);
-  pinMode(dirPin,OUTPUT);
-  
-  digitalWrite(irqpin, HIGH); //enable pullup resistor
   Serial.begin(9600);
+
+  pinMode(stepper_pulse,OUTPUT);
+  pinMode(stepper_direction,OUTPUT);
+  Serial.println("Stepper pins set");
+  
+  Serial.println("setup mpr121");
   Wire.begin();
-
+  pinMode(irqpin, INPUT);
+  digitalWrite(irqpin, HIGH); //enable pullup resistor
   mpr121_setup();
+
+  // HC-12 Setup?
+
+  Serial.println("Ready");
 }
 
-void loop(){
+void loop() {
   readTouchInputs();
-  if(touchStates[i] == 0){
-  digitalWrite(dirPin,HIGH); //Enables the motor to move in a perticular direction
-// for one full rotation required 200 pulses
-for(int x = 0; x < 200; x++){
-  digitalWrite(stepPin,HIGH);
-  delayMicroseconds(500);
-  digitalWrite(stepPin,LOW);
-  delayMicroseconds(500);
-}
-delay(1000); // delay for one second
 
-  }else{
- if(touchStates[i] == 1){
-digitalWrite(dirPin,HIGH); //Enables the motor to move in a opposite direction
-// for three full rotation required 600 pulses
-for(int x = 0; x < 600; x++){
-  digitalWrite(stepPin,HIGH);
-  delayMicroseconds(500);
-  digitalWrite(stepPin,LOW);
-  delayMicroseconds(500);
-}
-delay(1000); // delay for one second
-}
+  if (touchStates[i] == 0) {
+    onestep(HIGH); // "forward"
+    }
+  else if (touchStates[i] == 1) {
+    onestep(LOW); // "backwards"
+    }
+  // if no "touch", don't run the motor
 }
 
+void onestep(boolean whichway) {
+  // run one step in the direction
+  if (millis() - stepper_last_at > stepper_interval ) {
+    // FIXME: are delays between needed?
+    digitalWrite(stepper_direction, whichway);
+    delay(10);
+    digitalWrite(stepper_pulse,HIGH);
+    delay(10);
+    digitalWrite(stepper_pulse,LOW);
+
+    stepper_last_at = millis();
+    }
+}
 
 void readTouchInputs(){
   if(!checkInterrupt()){
@@ -164,11 +187,9 @@ void mpr121_setup(void){
   
 }
 
-
 boolean checkInterrupt(void){
   return digitalRead(irqpin);
 }
-
 
 void set_register(int address, unsigned char r, unsigned char v){
     Wire.beginTransmission(address);
