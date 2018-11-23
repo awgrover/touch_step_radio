@@ -1,7 +1,10 @@
 /*
   Behavior:
   
-    status leds show heartbeat. nb, onboard led is pin 11, shows sending to hc-12
+    status leds show
+      ready
+      primary
+      heartbeat. nb, onboard led is pin 11, shows sending to hc-12
     while touching 1 goes forward
     while touching 2 goes backwards
     sends same info to 2nd arduino
@@ -9,6 +12,8 @@
 
   Uses
     a capacitance touch board mpr121: 2,A5,A4
+    https://www.sparkfun.com/products/retired/9695
+    http://bildr.org/2011/05/mpr121_arduino/
     a stepper driver DRV8825: 8,9
     https://www.pololu.com/product/2133/resources
     https://www.pololu.com/file/0J590/drv8825.pdf
@@ -52,7 +57,8 @@ unsigned long heartbeat_at = 0; // the last time we saw radio from someone
 
 // Status LEDs
 int ReadyLED = 3; // on when we finish setting up
-int HeartbeatLED = 4; // on if heartbeat was seen before 'Heartbeat' timeout
+int PrimaryLED = 4; // on if we are primary (if we have mpr121)
+int HeartbeatLED = 5; // on if heartbeat was seen before 'Heartbeat' timeout
 
 void setup(){
   Serial.begin(9600);
@@ -74,9 +80,12 @@ void setup(){
   pinMode(TouchIRQPin, INPUT);
   digitalWrite(TouchIRQPin, HIGH); //enable pullup resistor
   Wire.begin();
-  mpr121_setup();
-  Serial.println("mpr121 set: we are primary");
-  we_are_primary = true;
+  if (mpr121_setup()) {
+    Serial.println("mpr121 set: we are primary");
+    we_are_primary = true;
+  } else {
+    Serial.println("No mpr121, we are secondary");
+  }
 
   // HC-12
   HC12.begin(9600); // slow, but ok
@@ -89,6 +98,7 @@ void setup(){
   // Status LEDs
   pinMode(HeartbeatLED, OUTPUT); digitalWrite(HeartbeatLED, LOW);
   pinMode(ReadyLED, OUTPUT); digitalWrite(ReadyLED, HIGH);
+  pinMode(PrimaryLED,OUTPUT); digitalWrite(PrimaryLED, we_are_primary ? HIGH : LOW);
 }
 
 void loop() {
@@ -252,7 +262,18 @@ int readTouchInputs(){
   return new_touch;
 }
 
-void mpr121_setup(void){
+boolean mpr121_setup(void) {
+
+  // adafruit does this:
+  // softreset
+  set_register(0x5A, 0x80, 0x63); // MPR121_SOFTRESET
+  delay(1);
+  // check for board
+  set_register(0x5A, 0x5E, 0x0); // MPR121_ECR
+  set_register(0x5A, 0x5D, 0x0); // MPR121_CONFIG2
+  Wire.requestFrom(0x5A,1);
+  byte LSB = Wire.read();
+  if (LSB != 0x24) return false;
 
   set_register(0x5A, ELE_CFG, 0x00); 
   
@@ -324,6 +345,7 @@ void mpr121_setup(void){
   
   set_register(0x5A, ELE_CFG, 0x0C);
   
+  return true;
 }
 
 boolean checkInterrupt(void){
