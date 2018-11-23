@@ -7,8 +7,10 @@
     also listens on radio for commands to go forward/backward: code for both is same
 
   Uses
-    a capacitance touch board (mpr121)
+    a capacitance touch board mpr121
     a stepper driver DRV8825
+    https://www.pololu.com/product/2133/resources
+    https://www.pololu.com/file/0J590/drv8825.pdf
     and a radio HC-12
 */
 
@@ -16,34 +18,46 @@
 
 // cap touch mpr121
 #include "mpr121.h"
-int irqpin = 2;  // Digital 2
+const int TouchIRQPin = 2;  // "has something happened"
 boolean touchStates[12]; //to keep track of the previous touch states
 const int ButtonForward = 0; // touch pt 0 is forward
 const int ButtonBackward = 1; // touch pt 1 is forward
 int button_last = -1; // what we did last
 
 // stepper driver drv8825, default 1/step per pulse
-const int StepperPulsePin = 9;
+// max step freq: 250kHz
+// min duration StepPin HIGH = 1.9microsec 
+// min duration StepPin LOW = 1.9microsec
+// min duration DirectionPin till StepPin = 650nsec
+const int StepperStepPin = 9;
+const int StepperStepHoldDuration = 2; // microsec
 const int StepperDirectionPin = 8;
+const int StepperDirectionPreDuration = 1; // microsec
 const int StepperSteps = 200; // steps per revolution
 const float StepperRPS = 0.5; // Desired revolutions-per-second when moving. Can use fractional: 1.5
 const int StepperInterval = ((StepperRPS * 1000.0) / StepperSteps ); // nb, can get roundoff, probably ok
 unsigned int long stepper_last_at = 0; // when we did the last step
 
 void setup(){
-  Serial.begin(9600);
-
-  pinMode(StepperPulsePin,OUTPUT);
+  // Motor, as early as possible. Probably put some pulls on these pins
+  pinMode(StepperStepPin,OUTPUT);
   pinMode(StepperDirectionPin,OUTPUT);
+  // we should "home" probably?
+
+  Serial.begin(9600);
   Serial.println("Stepper pins set");
   
-  Serial.println("setup mpr121");
+  // Touch
+  Serial.println("setup mpr121...");
+  pinMode(TouchIRQPin, INPUT);
+  digitalWrite(TouchIRQPin, HIGH); //enable pullup resistor
   Wire.begin();
-  pinMode(irqpin, INPUT);
-  digitalWrite(irqpin, HIGH); //enable pullup resistor
   mpr121_setup();
+  Serial.println("mpr121 set");
 
   // HC-12 Setup?
+  // If we are "primary", check on "secondary"
+  // if we are secondary, wait on primary
 
   Serial.println("Ready");
 }
@@ -51,6 +65,7 @@ void setup(){
 void loop() {
   readTouchInputs();
 
+  // While touched, run motor
   if (touchStates[ButtonForward] == 1) {
     onestep(HIGH); // "forward"
     }
@@ -67,11 +82,13 @@ void onestep(boolean whichway) {
 
     // FIXME: are delays between needed?
     digitalWrite(StepperDirectionPin, whichway);
-    delay(1);
-    digitalWrite(StepperPulsePin,HIGH);
-    delay(10);
-    digitalWrite(StepperPulsePin,LOW);
+    delayMicroseconds(StepperDirectionPreDuration);
 
+    digitalWrite(StepperStepPin,HIGH);
+    delayMicroseconds(StepperStepHoldDuration);
+
+    digitalWrite(StepperStepPin,LOW);
+    // no delay, because we know the StepperInterval > required hold
     }
 }
 
@@ -191,7 +208,7 @@ void mpr121_setup(void){
 }
 
 boolean checkInterrupt(void){
-  return digitalRead(irqpin);
+  return digitalRead(TouchIRQPin);
 }
 
 void set_register(int address, unsigned char r, unsigned char v){
