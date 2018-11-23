@@ -55,14 +55,18 @@ int ReadyLED = 3; // on when we finish setting up
 int HeartbeatLED = 4; // on if heartbeat was seen before 'Heartbeat' timeout
 
 void setup(){
-  pinMode(ReadyLED, OUTPUT); digitalWrite(ReadyLED, LOW);
+  Serial.begin(9600);
+  Serial.println("Start");
 
-  // Motor, as early as possible. Probably put some pulls on these pins
+  pinMode(ReadyLED, OUTPUT); 
+  digitalWrite(ReadyLED, HIGH); // Pulse to say "started"
+  delay(50);
+  digitalWrite(ReadyLED, LOW);
+
+  // Motor
   pinMode(StepperStepPin,OUTPUT);
   pinMode(StepperDirectionPin,OUTPUT);
   // we should "home" probably?
-
-  Serial.begin(9600);
   Serial.println("Stepper pins set");
   
   // Touch
