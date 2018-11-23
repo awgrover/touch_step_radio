@@ -18,6 +18,8 @@
 #include "mpr121.h"
 int irqpin = 2;  // Digital 2
 boolean touchStates[12]; //to keep track of the previous touch states
+const int ButtonForward = 0; // touch pt 0 is forward
+const int ButtonBackward = 1; // touch pt 1 is forward
 
 // stepper driver drv8825
 const int stepper_pulse = 9;
@@ -46,10 +48,10 @@ void setup(){
 void loop() {
   readTouchInputs();
 
-  if (touchStates[i] == 0) {
+  if (touchStates[ButtonForward] == 1) {
     onestep(HIGH); // "forward"
     }
-  else if (touchStates[i] == 1) {
+  else if (touchStates[ButtonBackward] == 1) {
     onestep(LOW); // "backwards"
     }
   // if no "touch", don't run the motor
