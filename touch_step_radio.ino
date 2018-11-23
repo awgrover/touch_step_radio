@@ -65,6 +65,8 @@ void setup(){
   Serial.println("Start");
 
   pinMode(ReadyLED, OUTPUT); 
+  digitalWrite(ReadyLED, LOW);
+  delay(100);
   digitalWrite(ReadyLED, HIGH); // Pulse to say "started"
   delay(50);
   digitalWrite(ReadyLED, LOW);
@@ -90,15 +92,13 @@ void setup(){
   // HC-12
   HC12.begin(9600); // slow, but ok
   Serial.println("Radio set");
-  // If we are "primary", check on "secondary"
-  // if we are secondary, wait on primary
-
-  Serial.println("Ready");
 
   // Status LEDs
   pinMode(HeartbeatLED, OUTPUT); digitalWrite(HeartbeatLED, LOW);
   pinMode(ReadyLED, OUTPUT); digitalWrite(ReadyLED, HIGH);
   pinMode(PrimaryLED,OUTPUT); digitalWrite(PrimaryLED, we_are_primary ? HIGH : LOW);
+
+  Serial.println("Ready");
 }
 
 void loop() {
