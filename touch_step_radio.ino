@@ -20,18 +20,21 @@ int irqpin = 2;  // Digital 2
 boolean touchStates[12]; //to keep track of the previous touch states
 const int ButtonForward = 0; // touch pt 0 is forward
 const int ButtonBackward = 1; // touch pt 1 is forward
+int button_last = -1; // what we did last
 
-// stepper driver drv8825
-const int stepper_pulse = 9;
-const int stepper_direction = 8;
-const int stepper_interval = 50; // msec between sending a step
+// stepper driver drv8825, default 1/step per pulse
+const int StepperPulsePin = 9;
+const int StepperDirectionPin = 8;
+const int StepperSteps = 200; // steps per revolution
+const float StepperRPS = 0.5; // Desired revolutions-per-second when moving. Can use fractional: 1.5
+const int StepperInterval = ((StepperRPS * 1000.0) / StepperSteps ); // nb, can get roundoff, probably ok
 unsigned int long stepper_last_at = 0; // when we did the last step
 
 void setup(){
   Serial.begin(9600);
 
-  pinMode(stepper_pulse,OUTPUT);
-  pinMode(stepper_direction,OUTPUT);
+  pinMode(StepperPulsePin,OUTPUT);
+  pinMode(StepperDirectionPin,OUTPUT);
   Serial.println("Stepper pins set");
   
   Serial.println("setup mpr121");
@@ -59,15 +62,16 @@ void loop() {
 
 void onestep(boolean whichway) {
   // run one step in the direction
-  if (millis() - stepper_last_at > stepper_interval ) {
-    // FIXME: are delays between needed?
-    digitalWrite(stepper_direction, whichway);
-    delay(10);
-    digitalWrite(stepper_pulse,HIGH);
-    delay(10);
-    digitalWrite(stepper_pulse,LOW);
-
+  if (millis() - stepper_last_at > StepperInterval ) {
     stepper_last_at = millis();
+
+    // FIXME: are delays between needed?
+    digitalWrite(StepperDirectionPin, whichway);
+    delay(1);
+    digitalWrite(StepperPulsePin,HIGH);
+    delay(10);
+    digitalWrite(StepperPulsePin,LOW);
+
     }
 }
 
@@ -111,9 +115,6 @@ void readTouchInputs(){
     
   }
 }
-
-
-
 
 void mpr121_setup(void){
 
